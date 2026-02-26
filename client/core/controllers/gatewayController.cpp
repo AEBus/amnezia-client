@@ -46,6 +46,16 @@ namespace
     constexpr int httpStatusCodeConflict = 409;
 
     constexpr int httpStatusCodeNotImplemented = 501;
+
+    QByteArray getAgwPublicKey(bool isDevEnvironment)
+    {
+        QByteArray key = isDevEnvironment ? DEV_AGW_PUBLIC_KEY : PROD_AGW_PUBLIC_KEY;
+
+        // CI secrets may store PEM as a single line with escaped newlines.
+        key.replace("\\r", "\r");
+        key.replace("\\n", "\n");
+        return key;
+    }
 }
 
 GatewayController::GatewayController(const QString &gatewayEndpoint, const bool isDevEnvironment, const int requestTimeoutMsecs,
@@ -105,7 +115,7 @@ GatewayController::EncryptedRequestData GatewayController::prepareRequest(const 
 
         EVP_PKEY *publicKey = nullptr;
         try {
-            QByteArray rsaKey = m_isDevEnvironment ? DEV_AGW_PUBLIC_KEY : PROD_AGW_PUBLIC_KEY;
+            QByteArray rsaKey = getAgwPublicKey(m_isDevEnvironment);
             QSimpleCrypto::QRsa rsa;
             publicKey = rsa.getPublicKeyFromByteArray(rsaKey);
         } catch (...) {
@@ -341,7 +351,7 @@ QStringList GatewayController::getProxyUrls(const QString &serviceType, const QS
     std::mt19937 generator(randomDevice());
     std::shuffle(baseUrls.begin(), baseUrls.end(), generator);
 
-    QByteArray key = m_isDevEnvironment ? DEV_AGW_PUBLIC_KEY : PROD_AGW_PUBLIC_KEY;
+    QByteArray key = getAgwPublicKey(m_isDevEnvironment);
 
     QStringList proxyStorageUrls;
     if (!serviceType.isEmpty()) {
@@ -555,7 +565,7 @@ void GatewayController::getProxyUrlsAsync(const QStringList proxyStorageUrls, co
 
             QByteArray responseBody;
             try {
-                QByteArray key = m_isDevEnvironment ? DEV_AGW_PUBLIC_KEY : PROD_AGW_PUBLIC_KEY;
+                QByteArray key = getAgwPublicKey(m_isDevEnvironment);
                 if (!m_isDevEnvironment) {
                     QCryptographicHash hash(QCryptographicHash::Sha512);
                     hash.addData(key);
